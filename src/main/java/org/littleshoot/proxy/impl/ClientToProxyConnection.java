@@ -117,6 +117,7 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
 
     /**
      * The current HTTP request that this connection is currently servicing.
+     * Must be released when it is no longer in use.
      */
     private volatile HttpRequest currentRequest;
 
@@ -409,7 +410,7 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
             HttpRequest currentHttpRequest, HttpResponse currentHttpResponse,
             HttpObject httpObject) {
         // we are sending a response to the client, so we are done handling this request
-        this.currentRequest = null;
+        releaseCurrentRequest();
 
         httpObject = filters.serverToProxyResponse(httpObject);
         if (httpObject == null) {
@@ -1292,7 +1293,7 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
      */
     private boolean respondWithShortCircuitResponse(HttpResponse httpResponse) {
         // we are sending a response to the client, so we are done handling this request
-        this.currentRequest = null;
+        releaseCurrentRequest();
 
         HttpResponse filteredResponse = (HttpResponse) currentFilters.proxyToClientResponse(httpResponse);
         if (filteredResponse == null) {
@@ -1484,6 +1485,15 @@ public class ClientToProxyConnection extends ProxyConnection<HttpRequest> {
   
     public ClientDetails getClientDetails() {
         return clientDetails;
+    }
+
+    private void releaseCurrentRequest() {
+        if (currentRequest != null) {
+            if (currentRequest instanceof FullHttpRequest) {
+                ((FullHttpRequest)currentRequest).release();
+            }
+            currentRequest = null;
+        }
     }
 
 }
